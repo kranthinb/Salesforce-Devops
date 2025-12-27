@@ -1,0 +1,41 @@
+name: Salesforce CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy-to-sandbox:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Source
+        uses: actions/checkout@v4
+
+      - name: Install Salesforce CLI
+        run: npm install -g @salesforce/cli
+
+      - name: Authenticate Salesforce Org
+        run: |
+          echo "${{ secrets.SF_JWT_KEY }}" > server.key
+          sf org login jwt \
+            --client-id ${{ secrets.SF_CLIENT_ID }} \
+            --jwt-key-file server.key \
+            --username ${{ secrets.SF_USERNAME }} \
+            --instance-url ${{ secrets.SF_INSTANCE_URL }} \
+            --alias TargetSandbox
+
+      - name: Validate Deployment
+        run: |
+          sf project deploy validate \
+            --target-org TargetSandbox \
+            --source-dir force-app/main/default \
+            --test-level RunLocalTests
+
+      - name: Deploy to Sandbox
+        run: |
+          sf project deploy start \
+            --target-org TargetSandbox \
+            --source-dir force-app/main/default \
+            --test-level RunLocalTests
